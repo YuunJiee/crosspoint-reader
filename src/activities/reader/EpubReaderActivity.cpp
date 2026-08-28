@@ -728,7 +728,10 @@ void EpubReaderActivity::onReaderMenuConfirm(EpubReaderMenuActivity::MenuAction 
 
   switch (action) {
     case EpubReaderMenuActivity::MenuAction::SELECT_CHAPTER: {
-      const int spineIdx = currentSpineIndex;
+      // Resolve before the section is released below: currentTocIndex() reads
+      // section->currentPage to pick the right chapter within a spine item that
+      // bundles several (see currentTocIndex()).
+      const int initialTocIndex = currentTocIndex();
       // Release the section while the chapter list is up (mirrors the
       // TEXT_SETTINGS path): picking a chapter resets it anyway, and its
       // tens-of-KB footprint is the difference between the chapter list
@@ -746,7 +749,7 @@ void EpubReaderActivity::onReaderMenuConfirm(EpubReaderMenuActivity::MenuAction 
         section.reset();
       }
       startActivityForResult(
-          std::make_unique<EpubReaderChapterSelectionActivity>(renderer, mappedInput, epub, spineIdx),
+          std::make_unique<EpubReaderChapterSelectionActivity>(renderer, mappedInput, epub, initialTocIndex),
           [this](const ActivityResult& result) {
             if (result.isCancelled) {
               openReaderMenu();
@@ -912,7 +915,7 @@ bool EpubReaderActivity::launchKOReaderSync() {
 
   CrossPointPosition localPos = getCurrentPosition();
   SavedProgressPosition localKoPos = ProgressMapper::toSavedProgress(epub, localPos);
-  const int tocIdx = epub->getTocIndexForSpineIndex(currentSpineIndex);
+  const int tocIdx = currentTocIndex();
   std::string localChapterName = (tocIdx >= 0) ? epub->getTocItem(tocIdx).title : "";
   const std::string savedEpubPath = epub->getPath();
 
@@ -1687,7 +1690,7 @@ void EpubReaderActivity::renderStatusBar() const {
   } else if (sb.titleMode == CrossPointSettings::STATUS_BAR_TITLE::CHAPTER_TITLE) {
     title = tr(STR_UNNAMED);
     if (epub) {
-      const int tocIndex = epub->getTocIndexForSpineIndex(currentSpineIndex);
+      const int tocIndex = currentTocIndex();
       if (tocIndex != -1) {
         const auto tocItem = epub->getTocItem(tocIndex);
         title = tocItem.title;
@@ -1720,9 +1723,29 @@ bool EpubReaderActivity::usesToolbarMenu() const {
   return SETTINGS.readerMenuStyle == CrossPointSettings::READER_MENU_TOOLBAR;
 }
 
+int EpubReaderActivity::currentTocIndex() const {
+  if (!epub) return -1;
+  const int startTocIndex = epub->getTocIndexForSpineIndex(currentSpineIndex);
+  if (startTocIndex < 0 || !section) return startTocIndex;
+
+  // Mirrors the forward walk in Section::startBuild (which collects this spine's
+  // tocAnchors for page-break insertion), but resolves the other direction: which
+  // of those chapters has the reader actually reached.
+  int resolved = startTocIndex;
+  for (int i = startTocIndex + 1; i < epub->getTocItemsCount(); i++) {
+    const auto entry = epub->getTocItem(i);
+    if (entry.spineIndex != currentSpineIndex) break;
+    if (entry.anchor.empty()) continue;
+    const auto anchorPage = section->findAnchor(entry.anchor);
+    if (!anchorPage.has_value() || *anchorPage > section->currentPage) break;
+    resolved = i;
+  }
+  return resolved;
+}
+
 std::string EpubReaderActivity::currentChapterTitle() const {
   if (!epub) return "";
-  const int tocIndex = epub->getTocIndexForSpineIndex(currentSpineIndex);
+  const int tocIndex = currentTocIndex();
   if (tocIndex != -1) {
     return epub->getTocItem(tocIndex).title;
   }
@@ -1821,7 +1844,7 @@ void EpubReaderActivity::openOverlay(Overlay target) {
       focusedTool = 0;
       break;
     case Overlay::Contents:
-      panelIndex = std::max(0, epub->getTocIndexForSpineIndex(currentSpineIndex));
+      panelIndex = std::max(0, currentTocIndex());
       // Fresh viewport opening on the current chapter, cursor shown or not.
       toolbarUi->nav().reset(panelIndex);
       toolbarUi->nav().top = panelIndex;
