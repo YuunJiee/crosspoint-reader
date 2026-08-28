@@ -1737,7 +1737,13 @@ int EpubReaderActivity::currentTocIndex() const {
     if (entry.spineIndex != currentSpineIndex) break;
     if (entry.anchor.empty()) continue;
     const auto anchorPage = section->findAnchor(entry.anchor);
-    if (!anchorPage.has_value() || *anchorPage > section->currentPage) break;
+    // A miss here doesn't prove this chapter is past the current page -- e.g. a
+    // partial build's anchor map may simply not have reached this anchor yet.
+    // Only a *resolved* page past currentPage is a reliable "gone too far"
+    // signal; an unresolved anchor is skipped so later, resolvable entries are
+    // still considered.
+    if (!anchorPage.has_value()) continue;
+    if (*anchorPage > section->currentPage) break;
     resolved = i;
   }
   return resolved;
