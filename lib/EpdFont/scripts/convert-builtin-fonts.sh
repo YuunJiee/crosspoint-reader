@@ -2,6 +2,14 @@
 
 set -e
 
+# build_cjk_intervals() below uses a nameref (`local -n`), which needs bash
+# 4.3+. macOS ships 3.2 on PATH by default (license reasons) -- install a
+# newer bash (e.g. `brew install bash`) and invoke that instead if this trips.
+if ((BASH_VERSINFO[0] < 4 || (BASH_VERSINFO[0] == 4 && BASH_VERSINFO[1] < 3))); then
+  echo "This script requires bash 4.3+ (found ${BASH_VERSION}). On macOS: brew install bash." >&2
+  exit 1
+fi
+
 cd "$(dirname "$0")"
 
 READER_FONT_STYLES=("Regular" "Italic" "Bold" "BoldItalic")
