@@ -273,14 +273,20 @@ void XMLCALL ContentOpfParser::startElement(void* userData, const XML_Char* name
                                          return a.idHash < b.idHash || (a.idHash == b.idHash && a.idLen < b.idLen);
                                        });
 
-            // Check for match (may need to check a few due to hash collisions)
+            // Check for match (may need to check a few due to hash collisions).
+            // A readString() failure (corrupt length -- see Serialization.h)
+            // desyncs tempItemStore from this entry's boundary; stop rather
+            // than keep matching against garbage. tempItemStore is this
+            // parser's own temp file, written moments earlier in this same
+            // pass, so this is a defensive stop, not an expected case.
             while (it != self->itemIndex.end() && it->idHash == targetHash) {
               self->tempItemStore.seek(it->fileOffset);
               std::string itemId;
-              serialization::readString(self->tempItemStore, itemId);
+              if (!serialization::readString(self->tempItemStore, itemId)) break;
               if (itemId == idref) {
-                serialization::readString(self->tempItemStore, href);
-                found = true;
+                if (serialization::readString(self->tempItemStore, href)) {
+                  found = true;
+                }
                 break;
               }
               ++it;
@@ -291,8 +297,10 @@ void XMLCALL ContentOpfParser::startElement(void* userData, const XML_Char* name
             self->tempItemStore.seek(0);
             std::string itemId;
             while (self->tempItemStore.available()) {
-              serialization::readString(self->tempItemStore, itemId);
-              serialization::readString(self->tempItemStore, href);
+              if (!serialization::readString(self->tempItemStore, itemId) ||
+                  !serialization::readString(self->tempItemStore, href)) {
+                break;
+              }
               if (itemId == idref) {
                 found = true;
                 break;

@@ -42,6 +42,18 @@ uint32_t writeTocEntryTo(F& file, const BookMetadataCache::TocEntry& entry) {
   return pos;
 }
 
+// readString()'s bool return (a corrupt length -- see Serialization.h) isn't
+// propagated here: SpineEntry/TocEntry are returned by value through
+// getSpineEntry()/getTocEntry(), a public API called from many places across
+// the reader, so turning this into e.g. std::optional<SpineEntry> would ripple
+// out to every caller for a narrower gain than it looks -- BookMetadataCache::
+// load() (which runs once per book open, not per entry) already rejects the
+// whole cache on a corrupt metadata string, which is the common-cause case
+// (a truncated/corrupted book.bin almost always fails there first). A corrupt
+// length reaching all the way down to one individual entry read, with the
+// aggregate metadata intact, is a narrower residual risk: at worst a wrong
+// title/href for that one spine/TOC entry, not a crash (readString() itself
+// still refuses to grow the string past MAX_SERIALIZED_STRING_LEN).
 template <typename F>
 BookMetadataCache::SpineEntry readSpineEntryFrom(F& file) {
   BookMetadataCache::SpineEntry entry;
@@ -475,11 +487,15 @@ bool BookMetadataCache::load() {
   serialization::readPod(bookFile, spineCount);
   serialization::readPod(bookFile, tocCount);
 
-  serialization::readString(bookFile, coreMetadata.title);
-  serialization::readString(bookFile, coreMetadata.author);
-  serialization::readString(bookFile, coreMetadata.language);
-  serialization::readString(bookFile, coreMetadata.coverItemHref);
-  serialization::readString(bookFile, coreMetadata.textReferenceHref);
+  if (!serialization::readString(bookFile, coreMetadata.title) ||
+      !serialization::readString(bookFile, coreMetadata.author) ||
+      !serialization::readString(bookFile, coreMetadata.language) ||
+      !serialization::readString(bookFile, coreMetadata.coverItemHref) ||
+      !serialization::readString(bookFile, coreMetadata.textReferenceHref)) {
+    LOG_ERR("BMC", "Corrupt metadata string length -- treating cache as invalid");
+    bookFile.close();
+    return false;
+  }
 
   // Cache cumulative spine sizes in RAM. The progress bar (every render) and percent
   // jumps otherwise pay 2 seeks + a heap-allocating SpineEntry read per access. Spine

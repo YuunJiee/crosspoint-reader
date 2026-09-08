@@ -48,27 +48,38 @@ inline void writeString(HalFile& file, const std::string& s) {
 // default allocator, not just a bare `new`).
 constexpr uint32_t MAX_SERIALIZED_STRING_LEN = 65535;
 
-inline void readString(std::istream& is, std::string& s) {
+// Returns false if len was rejected as corrupt. Callers must treat this as a
+// hard stop, not just a bad value for this one field: the length prefix has
+// already been consumed but the (untrustworthy) payload bytes have not, so
+// the stream is no longer positioned at a field boundary. Any further read
+// from this stream/file would parse payload bytes -- or bytes belonging to
+// the next field -- as if they were the next field's own data. The caller
+// must abort the whole record (matching how e.g. TextBlock::deserialize()
+// already returns nullptr on its own corruption checks) rather than pressing
+// on.
+inline bool readString(std::istream& is, std::string& s) {
   uint32_t len;
   readPod(is, len);
   if (len > MAX_SERIALIZED_STRING_LEN) {
     LOG_ERR("SER", "readString: length %u exceeds max, treating as corrupt", len);
     s.clear();
-    return;
+    return false;
   }
   s.resize(len);
   is.read(&s[0], len);
+  return true;
 }
 
-inline void readString(HalFile& file, std::string& s) {
+inline bool readString(HalFile& file, std::string& s) {
   uint32_t len;
   readPod(file, len);
   if (len > MAX_SERIALIZED_STRING_LEN) {
     LOG_ERR("SER", "readString: length %u exceeds max, treating as corrupt", len);
     s.clear();
-    return;
+    return false;
   }
   s.resize(len);
   file.read(&s[0], len);
+  return true;
 }
 }  // namespace serialization
