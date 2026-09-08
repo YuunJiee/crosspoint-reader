@@ -57,7 +57,7 @@ constexpr uint32_t MAX_SERIALIZED_STRING_LEN = 65535;
 // must abort the whole record (matching how e.g. TextBlock::deserialize()
 // already returns nullptr on its own corruption checks) rather than pressing
 // on.
-inline bool readString(std::istream& is, std::string& s) {
+[[nodiscard]] inline bool readString(std::istream& is, std::string& s) {
   uint32_t len;
   readPod(is, len);
   if (len > MAX_SERIALIZED_STRING_LEN) {
@@ -70,7 +70,7 @@ inline bool readString(std::istream& is, std::string& s) {
   return true;
 }
 
-inline bool readString(HalFile& file, std::string& s) {
+[[nodiscard]] inline bool readString(HalFile& file, std::string& s) {
   uint32_t len;
   readPod(file, len);
   if (len > MAX_SERIALIZED_STRING_LEN) {

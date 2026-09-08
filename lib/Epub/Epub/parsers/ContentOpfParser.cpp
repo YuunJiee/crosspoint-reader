@@ -274,16 +274,15 @@ void XMLCALL ContentOpfParser::startElement(void* userData, const XML_Char* name
                                        });
 
             // Check for match (may need to check a few due to hash collisions).
-            // A readString() failure (corrupt length -- see Serialization.h)
-            // desyncs tempItemStore from this entry's boundary; stop rather
-            // than keep matching against garbage. tempItemStore is this
-            // parser's own temp file, written moments earlier in this same
-            // pass, so this is a defensive stop, not an expected case.
+            // Each candidate re-seeks to its own it->fileOffset, so a
+            // readString() failure (corrupt length -- see Serialization.h)
+            // only desyncs this one candidate's read, not the rest of the
+            // chain -- treat it as a non-match and keep checking, same as
+            // the pre-existing "itemId != idref" case.
             while (it != self->itemIndex.end() && it->idHash == targetHash) {
               self->tempItemStore.seek(it->fileOffset);
               std::string itemId;
-              if (!serialization::readString(self->tempItemStore, itemId)) break;
-              if (itemId == idref) {
+              if (serialization::readString(self->tempItemStore, itemId) && itemId == idref) {
                 if (serialization::readString(self->tempItemStore, href)) {
                   found = true;
                 }
@@ -299,6 +298,7 @@ void XMLCALL ContentOpfParser::startElement(void* userData, const XML_Char* name
             while (self->tempItemStore.available()) {
               if (!serialization::readString(self->tempItemStore, itemId) ||
                   !serialization::readString(self->tempItemStore, href)) {
+                LOG_ERR("OPF", "Corrupt tempItemStore entry, aborting manifest scan");
                 break;
               }
               if (itemId == idref) {

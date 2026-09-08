@@ -155,7 +155,7 @@ inline void writeString(BufferedFileWriter& out, const std::string& s) {
 // See Serialization.h's readString() overloads for why this returns bool: a
 // rejected length leaves the stream desynced, so the caller must abort the
 // whole record rather than continue parsing.
-inline bool readString(BufferedFileReader& in, std::string& s) {
+[[nodiscard]] inline bool readString(BufferedFileReader& in, std::string& s) {
   uint32_t len;
   readPod(in, len);
   // See Serialization.h's MAX_SERIALIZED_STRING_LEN for why this is capped.
