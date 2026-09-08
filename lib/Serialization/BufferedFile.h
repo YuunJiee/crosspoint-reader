@@ -1,10 +1,13 @@
 #pragma once
 #include <HalStorage.h>
+#include <Logging.h>
 #include <Memory.h>
 
 #include <algorithm>
 #include <cstring>
 #include <string>
+
+#include "Serialization.h"
 
 namespace serialization {
 
@@ -152,6 +155,12 @@ inline void writeString(BufferedFileWriter& out, const std::string& s) {
 inline void readString(BufferedFileReader& in, std::string& s) {
   uint32_t len;
   readPod(in, len);
+  // See Serialization.h's MAX_SERIALIZED_STRING_LEN for why this is capped.
+  if (len > MAX_SERIALIZED_STRING_LEN) {
+    LOG_ERR("SER", "readString: length %u exceeds max, treating as corrupt", len);
+    s.clear();
+    return;
+  }
   s.resize(len);
   if (len > 0) {
     in.read(&s[0], len);
