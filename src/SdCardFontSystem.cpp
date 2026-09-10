@@ -144,15 +144,15 @@ void SdCardFontSystem::setupUiFallbacks(GfxRenderer& renderer) {
   // Probe the already-loaded reader-size font before paying for the UI sizes:
   // resolveTextFontId redirects on any codepoint the built-in UI fonts lack,
   // so a family with no non-Latin coverage at all can never act as a fallback
-  // and its UI sizes would be dead weight in RAM. There's no cheap way to ask
-  // a font "do you cover anything the built-in fonts don't" without an
-  // exhaustive scan, so this probes one representative codepoint per non-Latin
-  // script instead: every named interval preset the SD-font converter ships
-  // (docs/sd-card-fonts.md) other than the Latin ones (latin1/latin-ext --
-  // the built-in UI fonts already ship broad European Latin coverage, so a
-  // Latin-only family redirects nothing in resolveTextFontId and correctly
-  // stays excluded), plus Devanagari and Bengali, which don't have a named
-  // preset yet but are already supported by a custom --intervals range.
+  // and its UI sizes would be dead weight in RAM. Probes specific codepoints
+  // rather than scanning the font's own interval table: SD-card fonts only
+  // keep a RAM-resident subset of their coverage after load, so hasCodepoint()
+  // is the only full-coverage query available. Every named interval preset
+  // the SD-font converter ships (docs/sd-card-fonts.md) is probed here except
+  // the Latin ones (latin1/latin-ext -- the built-in UI fonts already ship
+  // broad European Latin coverage, so a Latin-only family correctly redirects
+  // nothing in resolveTextFontId), plus Devanagari and Bengali, which don't
+  // have a named preset yet but already work via a custom --intervals range.
   const auto readerIt = renderer.getFontMap().find(manager_.getFontId(familyName));
   if (readerIt == renderer.getFontMap().end()) return;
   static constexpr uint32_t kNonLatinProbes[] = {
