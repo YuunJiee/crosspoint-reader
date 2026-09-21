@@ -148,14 +148,13 @@ void SdCardFontSystem::setupUiFallbacks(GfxRenderer& renderer) {
   // its UI sizes would be dead weight in RAM.
   const auto readerIt = renderer.getFontMap().find(manager_.getFontId(familyName));
   if (readerIt == renderer.getFontMap().end()) return;
-  // One representative codepoint per script the built-in fonts may lack.
-  // Armenian/Georgian/Ethiopic/Cherokee/Tifinagh/IPA cover #3109 (SD fallback
-  // font not recognized for non-CJK scripts, e.g. Armenian book titles and
-  // chapter lists staying blank) and the other non-Latin presets the
-  // SD-font converter ships (docs/sd-card-fonts.md). Vietnamese and Bengali
-  // are deliberately left out: precomposed Vietnamese is already covered by
-  // the built-in Latin fonts, and crosspoint has no Indic script rendering
-  // support yet — Devanagari stays only because it predates this change.
+  // One representative codepoint per script the built-in fonts may lack,
+  // matching the non-Latin interval presets the SD-font converter ships
+  // (docs/sd-card-fonts.md). Vietnamese is excluded: its precomposed
+  // characters are already covered by the built-in Latin fonts. Bengali is
+  // excluded too: crosspoint has no Indic script rendering support.
+  // Devanagari is still probed despite that — treat it as legacy, not a
+  // signal that Indic scripts are otherwise supported.
   static constexpr uint32_t kFallbackProbes[] = {
       0x4E00,  // CJK Unified Ideographs (Han)
       0x3042,  // Hiragana
