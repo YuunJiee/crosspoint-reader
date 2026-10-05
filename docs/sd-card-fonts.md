@@ -83,7 +83,7 @@ tab in File Transfer accepts `.cpfont` files only. Copy direct fonts to the SD
 card instead. To remove a loose font file, delete that file from the SD card.
 The Fonts page can delete families stored in subfolders.
 
-## Non-Latin Fallback in the User Interface
+## Non-Latin Scripts Fallback in the User Interface
 
 The built-in UI fonts are Latin-only, so by default the interface (book titles
 in the library, file names in the browser, list rows, headers) shows
@@ -106,6 +106,11 @@ as the Latin text around them. A `.cpfont` family must contain files at sizes
 replacement boxes even though the book itself renders fine.** Any missing UI
 size keeps showing boxes for that script at that size. Direct TTF/OTF/TTC
 families use the same file at all three UI sizes.
+
+These UI sizes only take effect if the reader-size font also matches one of
+CrossPoint's built-in fallback-detection codepoints — see `kFallbackProbes` in
+`src/SdCardFontSystem.cpp` for the current list. A script outside that list
+gets no UI fallback even with the correct `.cpfont` sizes present.
 
 For `.cpfont` families, **Settings > Reader > Font Size** lists every size the family ships,
 so a family built at 8,10,12,14,16,18 offers all six as reading sizes — the UI
@@ -179,7 +184,7 @@ To make `.cpfont` files for any device, convert your TrueType/OpenType fonts:
 > **Using this font for non-Latin UI fallback too?** The examples above only
 > include the reader sizes (12–18). To also get fallback for this font's
 > script in the library, headers, and file browser (see
-> [Non-Latin Fallback in the User Interface](#non-latin-fallback-in-the-user-interface)),
+> [Non-Latin Scripts Fallback in the User Interface](#non-latin-scripts-fallback-in-the-user-interface)),
 > add the UI sizes: `--sizes 8,10,12,14,16,18`.
 
 ### Available Unicode interval presets
