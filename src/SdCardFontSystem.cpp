@@ -207,11 +207,7 @@ void SdCardFontSystem::setupUiFallbacks(GfxRenderer& renderer) {
   if (readerIt == renderer.getFontMap().end()) return;
   // One representative codepoint per script the built-in fonts may lack,
   // matching the non-Latin interval presets the SD-font converter ships
-  // (docs/sd-card-fonts.md). Vietnamese is excluded: its precomposed
-  // characters are already covered by the built-in Latin fonts. Bengali is
-  // excluded too: crosspoint has no Indic script rendering support.
-  // Devanagari is still probed despite that — treat it as legacy, not a
-  // signal that Indic scripts are otherwise supported.
+  // (docs/sd-card-fonts.md).
   static constexpr uint32_t kFallbackProbes[] = {
       0x4E00,  // CJK Unified Ideographs (Han)
       0x3042,  // Hiragana
@@ -221,8 +217,6 @@ void SdCardFontSystem::setupUiFallbacks(GfxRenderer& renderer) {
       0x0430,  // Cyrillic
       0x05D0,  // Hebrew
       0x0627,  // Arabic
-      0x0E01,  // Thai
-      0x0905,  // Devanagari
       0x0531,  // Armenian
       0x10D0,  // Georgian
       0x1200,  // Ethiopic
